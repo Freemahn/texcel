@@ -2,3 +2,5 @@
 docs/
 backup/
 output/
+target/
+*.iml

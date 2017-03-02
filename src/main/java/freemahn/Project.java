@@ -6,11 +6,11 @@ import java.util.ArrayList;
  * Created by pgordon on 27.02.2017.
  */
 public class Project {
-    String name;
-    String filename;
-    ArrayList<Double> revenueMonthly = new ArrayList<>();
-    ArrayList<Double> chargingMonthly = new ArrayList<>();
-    Double revenueTotal;
+    public String name;
+    public String filename;
+    public ArrayList<Double> revenueMonthly = new ArrayList<>();
+    public ArrayList<Double> chargingMonthly = new ArrayList<>();
+    public Double revenueTotal;
 
     public Project(String name, String filename, ArrayList<Double> revenueMonthly) {
         this.name = name;

@@ -12,10 +12,8 @@ import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileOutputStream;
 import java.io.IOException;
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.Iterator;
-import java.util.List;
+import java.time.LocalDateTime;
+import java.util.*;
 
 public class Main {
     private static final String PREFIX = "C:\\texcel\\docs\\";
@@ -25,25 +23,32 @@ public class Main {
 
     public static void main(String[] args) {
 
-
+        String projectWorldFile;
         List<String> files = new ArrayList<>();
-
+        if(args.length  == 0){
+            projectWorldFile = "C:\\texcel\\docs\\Forecast 2017 project world.xlsx";
+            files.add("Forecast_Project 1.xlsm");
+            files.add("Forecast_Project 2.xlsx");
+            files.add("Forecast_Project 3.xlsx");
+        }else{
+            projectWorldFile = args[0];
+            files.addAll(Arrays.asList(args));
+            files.remove(0);//remove projectWorldFile
+        }
 
         //parse projects
         //TODO input via properties/gui
-        files.add("Forecast_Project 1.xlsm");
-        files.add("Forecast_Project 2.xlsx");
-        files.add("Forecast_Project 3.xlsx");
+
         files
                 .stream()
-                .map(Main::parseForecastProject)
+                .map((v) -> parseForecastProject(PREFIX,v))
                 .forEach(project -> projects.put(project.name, project));
 
         projects.forEach((k, v) -> System.out.println(v));
 
 
         //fill revenue
-        XSSFWorkbook workbook = null;
+        XSSFWorkbook workbook;
         try {
             workbook = new XSSFWorkbook(OPCPackage.open(PREFIX +"Forecast 2017 project world.xlsx"));
         } catch (InvalidFormatException | IOException e) {
@@ -51,14 +56,16 @@ public class Main {
             //e.printStackTrace();
             return;
         }
-
-
-        fillRevenue(workbook, 0);
-        fillChargingProjects(workbook);
+        LocalDateTime timePoint = LocalDateTime.now();
+        int currentMonth = timePoint.getMonthValue()-1;
+        XSSFSheet revenueSheet = workbook.getSheet("Revenue");
+        XSSFSheet chargingSheet = workbook.getSheet("Charging_projects");
+        fillRevenue(revenueSheet, currentMonth);
+        fillChargingProjects(chargingSheet,currentMonth);
 
         //fill chargingMonthly
         try (FileOutputStream out =
-                     new FileOutputStream(new File("output\\test.xlsx"));) {
+                     new FileOutputStream(new File("output\\test.xlsx"))) {
 
             //recalculate all formulas
             XSSFFormulaEvaluator.evaluateAllFormulaCells(workbook);
@@ -86,10 +93,8 @@ public class Main {
         return cols;
     }
 
-    private static void fillRevenue(XSSFWorkbook workbook, int monthsOffset) {
+    private static void fillRevenue(XSSFSheet revenueSheet, int currentMonth) {
         System.out.println("Parsing projects world: revenue started");
-
-        XSSFSheet revenueSheet = workbook.getSheet("Revenue");
         ArrayList<Integer> cols = parseAccrualMonths(revenueSheet);
         System.out.println("Setting values..");
 
@@ -118,7 +123,7 @@ public class Main {
                 continue;//TODO
             }
             System.out.println("projectName " + projectName);
-            for (int i = 0; i < 12; i++) {
+            for (int i = currentMonth; i < 12; i++) {
                 double monthValue = project.revenueMonthly.get(i);
                 int colIndex = cols.get(i);
                 Cell cell = currentRow.getCell(colIndex);
@@ -132,9 +137,8 @@ public class Main {
 
     }
 
-    private static void fillChargingProjects(XSSFWorkbook workbook) {
+    private static void fillChargingProjects(XSSFSheet chargingSheet,int currentMonth) {
         System.out.println("Parsing projects world: charging started");
-        XSSFSheet chargingSheet = workbook.getSheet("Charging_projects");
         System.out.println("Setting values..");
         Iterator<Row> rowIterator = chargingSheet.iterator();
         Row row = null;
@@ -162,7 +166,7 @@ public class Main {
             }
             System.out.println("projectName " + projectName);
             int monthsColOffset = 4;
-            for (int i = 0; i < 12; i++) {
+            for (int i = currentMonth; i < 12; i++) {
                 double monthValue = project.chargingMonthly.get(i);
 
                 Cell cell = currentRow.getCell(monthsColOffset+i);
@@ -177,16 +181,14 @@ public class Main {
 
     }
 
-    private static Project parseForecastProject(String filename) {
+    public static Project parseForecastProject(String path, String filename) {
         XSSFWorkbook workbook;
         //parsing Forecast_PROJECTNAME.xslx
         String projectName = filename.substring("Forecast_".length(), filename.lastIndexOf("."));
         Project project = new Project(projectName, filename);
 
-        int employeeRowOffset = 2;
-
         int rowHeaderColumn = 1;
-        try (FileInputStream file = new FileInputStream(new File(PREFIX + project.filename))) {
+        try (FileInputStream file = new FileInputStream(new File(path + project.filename))) {
             //Get the workbook instance for XLS file
             workbook = new XSSFWorkbook(OPCPackage.open(file));
         } catch (InvalidFormatException | IOException e) {
@@ -236,8 +238,6 @@ public class Main {
             Double monthValue = totalRow.getCell(i).getNumericCellValue();
             project.chargingMonthly.add(monthValue);
         }
-
-
 
         return project;
     }

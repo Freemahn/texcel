@@ -16,7 +16,7 @@ import java.time.LocalDateTime;
 import java.util.*;
 
 public class Main {
-    private static final String PREFIX = "C:\\texcel\\docs\\";
+    private static final String PREFIX = "C:\\texcel\\docs1\\";
     private static HashMap<String, Project> projects = new HashMap<>();
     private static boolean debug = true;
 
@@ -26,7 +26,7 @@ public class Main {
         String projectWorldFile;
         List<String> files = new ArrayList<>();
         if(args.length  == 0){
-            projectWorldFile = "C:\\texcel\\docs\\Forecast 2017 project world.xlsx";
+            projectWorldFile = "C:\\texcel\\docs1\\Forecast 2017 project world.xlsx";
             files.add("Forecast_Project 1.xlsm");
             files.add("Forecast_Project 2.xlsx");
             files.add("Forecast_Project 3.xlsx");
@@ -42,9 +42,11 @@ public class Main {
         files
                 .stream()
                 .map((v) -> parseForecastProject(PREFIX,v))
-                .forEach(project -> projects.put(project.name, project));
+                .forEach(project -> projects.put(project.getName(), project));
 
         projects.forEach((k, v) -> System.out.println(v));
+
+
 
 
         //fill revenue
@@ -124,7 +126,7 @@ public class Main {
             }
             System.out.println("projectName " + projectName);
             for (int i = currentMonth; i < 12; i++) {
-                double monthValue = project.revenueMonthly.get(i);
+                double monthValue = project.getRevenueMonthly().get(i);
                 int colIndex = cols.get(i);
                 Cell cell = currentRow.getCell(colIndex);
                 if (debug) System.out.print("was " + cell.getNumericCellValue());
@@ -167,7 +169,7 @@ public class Main {
             System.out.println("projectName " + projectName);
             int monthsColOffset = 4;
             for (int i = currentMonth; i < 12; i++) {
-                double monthValue = project.chargingMonthly.get(i);
+                double monthValue = project.getChargingMonthly().get(i);
 
                 Cell cell = currentRow.getCell(monthsColOffset+i);
                 //if (debug) System.out.print("was " + cell.getNumericCellValue());
@@ -188,7 +190,7 @@ public class Main {
         Project project = new Project(projectName, filename);
 
         int rowHeaderColumn = 1;
-        try (FileInputStream file = new FileInputStream(new File(path + project.filename))) {
+        try (FileInputStream file = new FileInputStream(new File(path + project.getFilename()))) {
             //Get the workbook instance for XLS file
             workbook = new XSSFWorkbook(OPCPackage.open(file));
         } catch (InvalidFormatException | IOException e) {
@@ -216,10 +218,10 @@ public class Main {
         }
         for (int i = monthsColOffset; i < monthsColOffset + 12; i++) {
             Double monthValue = totalWithTravelRow.getCell(i).getNumericCellValue();
-            project.revenueMonthly.add(monthValue);
+            project.getRevenueMonthly().add(monthValue);
         }
         Cell total = totalWithTravelRow.getCell(monthsColOffset + 12);
-        project.revenueTotal = total.getNumericCellValue();
+        project.setRevenueTotal(total.getNumericCellValue());
 
         XSSFSheet chargingSheet = workbook.getSheet("Charging");
         //search for "TOTAL" row
@@ -236,7 +238,7 @@ public class Main {
         monthsColOffset = 4;
         for (int i = monthsColOffset; i < monthsColOffset + 12; i++) {
             Double monthValue = totalRow.getCell(i).getNumericCellValue();
-            project.chargingMonthly.add(monthValue);
+            project.getChargingMonthly().add(monthValue);
         }
 
         return project;

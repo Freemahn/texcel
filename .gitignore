@@ -1,6 +1,7 @@
 .idea/
-docs/
+docs*/
 backup/
 output/
 target/
 *.iml
+test_files/

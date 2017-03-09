@@ -1,4 +1,4 @@
-package freemahn;
+package entities;
 
 import java.util.ArrayList;
 
@@ -51,6 +51,7 @@ public class Project {
     private ArrayList<Double> revenueMonthly = new ArrayList<>();
     private ArrayList<Double> chargingMonthly = new ArrayList<>();
     private Double revenueTotal;
+
 
     public Project(String name, String filename, ArrayList<Double> revenueMonthly) {
         this.name = name;

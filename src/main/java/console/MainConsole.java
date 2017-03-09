@@ -1,5 +1,6 @@
-package freemahn;
+package console;
 
+import entities.Project;
 import org.apache.poi.openxml4j.exceptions.InvalidFormatException;
 import org.apache.poi.openxml4j.opc.OPCPackage;
 import org.apache.poi.ss.usermodel.Cell;
@@ -15,7 +16,7 @@ import java.io.IOException;
 import java.time.LocalDateTime;
 import java.util.*;
 
-public class Main {
+public class MainConsole {
     private static final String PREFIX = "C:\\texcel\\docs1\\";
     private static HashMap<String, Project> projects = new HashMap<>();
     private static boolean debug = true;
@@ -174,7 +175,6 @@ public class Main {
                 Cell cell = currentRow.getCell(monthsColOffset+i);
                 //if (debug) System.out.print("was " + cell.getNumericCellValue());
                 cell.setCellValue(monthValue);
-                if (debug) System.out.println(",become " + cell.getNumericCellValue());
             }
             System.out.println("----------------------------------------------");
         }

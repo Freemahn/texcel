@@ -1,4 +1,4 @@
-package freemahn;
+package entities;
 
 /**
  * Created by pgordon on 07.03.2017.
@@ -24,7 +24,6 @@ public class Employee {
     }
 
     public Employee(String name, String costCenter) {
-
         this.name = name;
         this.costCenter = costCenter;
     }

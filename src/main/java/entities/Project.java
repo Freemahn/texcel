@@ -1,6 +1,8 @@
 package entities;
 
 import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.InputMismatchException;
 
 /**
  * Created by pgordon on 27.02.2017.
@@ -50,7 +52,39 @@ public class Project {
     private String filename;
     private ArrayList<Double> revenueMonthly = new ArrayList<>();
     private ArrayList<Double> chargingMonthly = new ArrayList<>();
+
+    public ArrayList<Double> getTravelMonthly() {
+        return travelMonthly;
+    }
+
+    public void setTravelMonthly(ArrayList<Double> travelMonthly) {
+        this.travelMonthly = travelMonthly;
+    }
+
+    private ArrayList<Double> travelMonthly = new ArrayList<>();
+
+    public HashMap<Integer, ArrayList<Double>> getCostCenterMonthly() {
+        return costCenterMonthly;
+    }
+
+    public void setCostCenterMonthly(HashMap<Integer, ArrayList<Double>> costCenterMonthly) {
+        this.costCenterMonthly = costCenterMonthly;
+    }
+
+    // Integer - costcenter for this project (project can include multiple costcenters)
+    private HashMap<Integer, ArrayList<Double>> costCenterMonthly = new HashMap<Integer, ArrayList<Double>>();
+
     private Double revenueTotal;
+
+    public Double getTravelTotal() {
+        return travelTotal;
+    }
+
+    public void setTravelTotal(Double travelTotal) {
+        this.travelTotal = travelTotal;
+    }
+
+    private Double travelTotal;
 
 
     public Project(String name, String filename, ArrayList<Double> revenueMonthly) {
@@ -60,7 +94,7 @@ public class Project {
 
     }
 
-    Project(String name, String filename) {
+    public Project(String name, String filename) {
         this.name = name;
         this.filename = filename;
         revenueMonthly = new ArrayList<>();

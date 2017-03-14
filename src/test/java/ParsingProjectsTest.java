@@ -1,4 +1,3 @@
-import console.MainConsole;
 import entities.Project;
 import org.apache.poi.openxml4j.exceptions.InvalidFormatException;
 import org.apache.poi.openxml4j.opc.OPCPackage;
@@ -18,7 +17,7 @@ public class ParsingProjectsTest {
     @Before
     public void openFile() throws InvalidFormatException, IOException{
         XSSFWorkbook workbook= new XSSFWorkbook(OPCPackage.open("test_files\\Forecast 2017 project world.xlsx"));
-        actualProject =  MainConsole.parseForecastProject("test_files\\", "Forecast_Project 1.xlsm");
+       // actualProject =  Executor.parseForecastProject("test_files\\", "Forecast_Project 1.xlsm");
         assertNotNull(actualProject);
     }
     @Test

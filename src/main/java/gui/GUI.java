@@ -1,6 +1,6 @@
 package gui;
 
-import javafx.scene.image.Image;
+import main.Main;
 
 import javax.swing.*;
 
@@ -17,7 +17,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 
-public class GUI implements Runnable{
+public class GUI implements Runnable {
     private JFrame frame;
     private static String root;
 
@@ -28,7 +28,7 @@ public class GUI implements Runnable{
     public void run() {
         frame = new JFrame("T-excel");
         frame.setPreferredSize(new Dimension(500, 500));
-        frame.setIconImage(new ImageIcon(getClass().getResource("../excel.png")).getImage());
+      //  frame.setIconImage(new ImageIcon(Main.class.getResource("../excel.png")).getImage());
         frame.setDefaultCloseOperation(WindowConstants.EXIT_ON_CLOSE);
         render(frame.getContentPane());
         frame.pack();
@@ -139,8 +139,8 @@ public class GUI implements Runnable{
 
                 List<String> pathsFrom = new ArrayList<>();
                 list.forEach(x -> pathsFrom.add(x.getAbsolutePath()));
-                console.Main.setLastDir(list.get(0).getParent());
-                int code = console.Executor.parse(pathsFrom, to[0], monthSelector.getSelectedIndex());
+                main.Main.setLastDir(list.get(0).getParent());
+                int code = main.Executor.parse(pathsFrom, to[0], monthSelector.getSelectedIndex());
                 text2.setText((code == 0)? "Work is done, time to get some tea" : "Some problems occured");
                 to[0] = null;
                 resetFrom.doClick();

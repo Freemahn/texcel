@@ -1,82 +1,93 @@
 package main;
 
 import entities.Project;
+import gui.GUI;
+import org.apache.poi.hssf.usermodel.HSSFCellStyle;
 import org.apache.poi.openxml4j.exceptions.InvalidFormatException;
 import org.apache.poi.openxml4j.opc.OPCPackage;
-import org.apache.poi.ss.usermodel.Cell;
-import org.apache.poi.ss.usermodel.Row;
+import org.apache.poi.ss.usermodel.*;
 import org.apache.poi.xssf.usermodel.XSSFFormulaEvaluator;
 import org.apache.poi.xssf.usermodel.XSSFSheet;
 import org.apache.poi.xssf.usermodel.XSSFWorkbook;
 
+import javax.swing.*;
+import java.awt.*;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.util.*;
+import java.util.List;
+import java.util.function.BiPredicate;
+import java.util.function.Predicate;
+
+import static main.Utils.*;
 
 /**
  * Created by prozhdes on 08.03.2017.
  */
 
 public class Executor {
-    private static HashMap<String, Project> projects;
+    private HashMap<String, Project> projects;
     private static boolean debug = true;
+    static CellStyle style;
 
-
-    public static int parse(List<String> files, File destinationFile, int currentMonth) {
+    public void parse(List<String> files, File destinationFile, int currentMonth) throws Exception {
+       // try {
         projects = new HashMap<>();
         String projectWorldFile = destinationFile.getAbsolutePath();
         String name[] = destinationFile.getName().split("\\.(?=[^\\.]+$)");
         String temp_name = name[0] + "_temp." + name[1];
         String destinationFolder = destinationFile.getParent() + File.separator;
-        //parse projects
-        files.stream()
-                .map((v) -> parseForecastProject(v))
-                .forEach(project -> projects.put(project.getName(), project));
+
+        for (String path : files) {
+            Project p = parseForecastProject(path);
+            projects.put(p.getName(), p);
+        }
 
         //fill revenue
-        XSSFWorkbook workbook;
+        XSSFWorkbook workbook = null;
         try {
             workbook = new XSSFWorkbook(OPCPackage.open(projectWorldFile));
+            style = workbook.createCellStyle();
+            style.setFillForegroundColor(IndexedColors.AQUA.index);
+            style.setFillPattern(HSSFCellStyle.SOLID_FOREGROUND);
         } catch (InvalidFormatException | IOException e) {
-            System.err.println("Cannot open forecast project world");
-            return -1;
+           // return "Cannot open forecast project world";
         }
 
-        XSSFSheet revenueSheet = workbook.getSheet("Revenue");
-        XSSFSheet chargingSheet = workbook.getSheet("Charging_projects");
-        XSSFSheet costCentersSheet = workbook.getSheet("Charging_CostCenters");
-        XSSFSheet projectsTravelSheet = workbook.getSheet("Projects_Travel");
+            XSSFSheet revenueSheet = workbook.getSheet("Revenue");
+            XSSFSheet chargingSheet = workbook.getSheet("Charging_projects");
+            XSSFSheet costCentersSheet = workbook.getSheet("Charging_CostCenters");
+            XSSFSheet projectsTravelSheet = workbook.getSheet("Projects_Travel");
 
-        fillRevenue(revenueSheet, currentMonth);
-        fillChargingProjects(chargingSheet,currentMonth);
-        fillCostCenters(costCentersSheet,currentMonth);
-        fillTravel(projectsTravelSheet, currentMonth);
+            fillRevenue(revenueSheet, currentMonth);
+            fillChargingProjects(chargingSheet, currentMonth);
+            fillCostCenters(costCentersSheet, currentMonth);
+            fillTravel(projectsTravelSheet, currentMonth);
 
-        //fill chargingMonthly
-        try (FileOutputStream out =
-                     new FileOutputStream(new File(destinationFolder + temp_name))) {
+            //fill chargingMonthly
+            try (FileOutputStream out =
+                         new FileOutputStream(new File(destinationFolder + temp_name))) {
 
-            //recalculate all formulas
-            XSSFFormulaEvaluator.evaluateAllFormulaCells(workbook);
-            workbook.write(out);
-        } catch (IOException e) {
-            e.printStackTrace();
-        }
-        try {
+                //recalculate all formulas
+                XSSFFormulaEvaluator.evaluateAllFormulaCells(workbook);
+                workbook.write(out);
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
             workbook.close();
-        } catch (IOException e) {
-            e.printStackTrace();
-        }
-        delete(projectWorldFile);
-        rename(destinationFolder + temp_name, projectWorldFile);
-        return 0;
+            delete(projectWorldFile);
+            rename(destinationFolder + temp_name, projectWorldFile);
+            Desktop dt = Desktop.getDesktop();
+            dt.open(new File(projectWorldFile));
+       // } catch (Exception e) {
+       //     return e.getMessage();
+       // }
+       // return "finished";
     }
 
-    private static void fillCostCenters(XSSFSheet chargingSheet, int currentMonth) {
-        System.out.println("Parsing projects world: cost centers started");
-        System.out.println("Setting values..");
+    private void fillCostCenters(XSSFSheet chargingSheet, int currentMonth) {
         Iterator<Row> rowIterator = chargingSheet.iterator();
         Row row = null;
         //skip 3  headers row
@@ -85,78 +96,46 @@ public class Executor {
         rowIterator.next();
         while (rowIterator.hasNext()) {
             Row currentRow = rowIterator.next();
-            Cell currentCell = currentRow.getCell(0);
-
-            if (currentCell == null) {
-                //means we have already parsed all project lines
+            String content = getCellContent(currentRow.getCell(0));
+            if (content.isEmpty())
                 break;
-            }
-
-            //System.out.println(currentCell.getCellTypeEnum().name());
-            String projectName = currentCell.getStringCellValue();
-
-            Project project = projects.get(projectName);
-
+            Project project = projects.get(content);
             if (project == null) {
                 //skip row
-                //if (debug) System.out.println("No project " + projectName);
                 continue;//TODO
             }
-
-            int costcenter = (int) currentRow.getCell(3).getNumericCellValue();
+            int costcenter = (int) Double.parseDouble(getCellContent(currentRow.getCell(3)));//int) currentRow.getCell(3).getNumericCellValue();
             ArrayList<Double> values = project.getCostCenterMonthly().get(costcenter);
-
 
             int monthsColOffset = 4;
             for (int i = currentMonth; i < 12; i++) {
+
+
                 double monthValue = values.get(i);
 
                 Cell cell = currentRow.getCell(monthsColOffset + i);
                 cell.setCellValue(monthValue);
-                //if (debug) System.out.println(",become " + cell.getNumericCellValue());
+                cell.setCellStyle(style);
             }
-            System.out.println("----------------------------------------------");
         }
-        System.out.println("Parsing projects world: costcenters finished");
 
     }
 
     /**
      *
      */
-    private static ArrayList<Integer> parseAccrualMonths(XSSFSheet revenueSheet) {
-        System.out.print("Parsing accrual positions...");
+    private ArrayList<Integer> parseAccrualMonths(XSSFSheet revenueSheet) {
         Row accrualsRow = revenueSheet.getRow(1);
         ArrayList<Integer> cols = new ArrayList<>();
         for (Cell cell : accrualsRow) {
             if (cell.getStringCellValue().contains("Accruals"))
                 cols.add(cell.getColumnIndex());
         }
-        System.out.println("finished");
         return cols;
     }
 
-    public static boolean delete(String filepath) {
-        File file = null;
-        try{
-            file = new File(filepath);
-        }catch(Exception e){
-            e.printStackTrace();
-        }
-        return file.delete();
-    }
-
-    public static boolean rename(String tempName, String name) {
-        File tempFile = new File(tempName);
-        File file = new File(name);
-        return tempFile.renameTo(file);
-    }
-
-    private static void fillRevenue(XSSFSheet revenueSheet, int currentMonth) {
-        System.out.println("Parsing projects world: revenue started");
+    private void fillRevenue(XSSFSheet revenueSheet, int currentMonth) {
         ArrayList<Integer> cols = parseAccrualMonths(revenueSheet);
-        System.out.println("Setting values..");
-
         Iterator<Row> rowIterator = revenueSheet.iterator();
         Row row = null;
         //skip 3  headers row
@@ -164,41 +143,28 @@ public class Executor {
         rowIterator.next();
         rowIterator.next();
         while (rowIterator.hasNext()) {
-
             Row currentRow = rowIterator.next();
-            Cell currentCell = currentRow.getCell(0);
-
-            if (currentCell == null) {
-                //means we have already parsed all project lines
+            String content = getCellContent(currentRow.getCell(0));
+            if (content.isEmpty())
                 break;
-            }
-
-            String projectName = currentCell.getStringCellValue();
-            Project project = projects.get(projectName);
+            Project project = projects.get(content);
 
             if (project == null) {
                 //skip row
-                //if (debug) System.out.println("No project " + projectName);
                 continue;//TODO
             }
             for (int i = currentMonth; i < 12; i++) {
                 double monthValue = project.getRevenueMonthly().get(i);
                 int colIndex = cols.get(i);
                 Cell cell = currentRow.getCell(colIndex);
-                if (debug) System.out.print("was " + cell.getNumericCellValue());
                 cell.setCellValue(monthValue);
-                if (debug) System.out.println(",become " + cell.getNumericCellValue());
+                cell.setCellStyle(style);
+
             }
-            System.out.println("----------------------------------------------");
         }
-        System.out.println("Parsing projects world: revenue finished");
     }
 
-    private static void fillTravel(XSSFSheet travelSheet, int currentMonth) {
-        System.out.println("Parsing projects world: revenue started");
-        //ArrayList<Integer> cols = parseAccrualMonths(revenueSheet);
-        System.out.println("Setting values..");
-
+    private void fillTravel(XSSFSheet travelSheet, int currentMonth) {
         Iterator<Row> rowIterator = travelSheet.iterator();
         Row row = null;
         //skip 3  headers row
@@ -208,34 +174,27 @@ public class Executor {
 
         while (rowIterator.hasNext()) {
             Row currentRow = rowIterator.next();
-            Cell currentCell = currentRow.getCell(0);
-
-            if (currentCell == null) {
-                //means we have already parsed all project lines
+            //System.out.println(" == " + getCellContent(currentRow.getCell(0)));
+            String content = getCellContent(currentRow.getCell(0));
+            if (content.isEmpty())
                 break;
-            }
-
-            String projectName = currentCell.getStringCellValue();
-            Project project = projects.get(projectName);
+            Project project = projects.get(content);
 
             if (project == null) {
                 //skip row
-                //if (debug) System.out.println("No project " + projectName);
                 continue;//TODO
             }
-            System.out.println("projectName " + projectName);
             for (int i = currentMonth + 4; i < 16; i++) {
                 double monthValue = project.getTravelMonthly().get(i - 4);
                 Cell cell = currentRow.getCell(i);
                 cell.setCellValue(monthValue);
-                //System.err.println(" == " + (i - 4) + " month set");
+                cell.setCellStyle(style);
+
             }
         }
     }
 
-    private static void fillChargingProjects(XSSFSheet chargingSheet,int currentMonth) {
-        System.out.println("Parsing projects world: charging started");
-        System.out.println("Setting values..");
+    private void fillChargingProjects(XSSFSheet chargingSheet,int currentMonth) {
         Iterator<Row> rowIterator = chargingSheet.iterator();
         Row row = null;
         //skip 3  headers row
@@ -243,132 +202,73 @@ public class Executor {
         rowIterator.next();
         rowIterator.next();
         while (rowIterator.hasNext()) {
-
             Row currentRow = rowIterator.next();
-            Cell currentCell = currentRow.getCell(0);
-
-            if (currentCell == null) {
-                //means we have already parsed all project lines
+            String content = getCellContent(currentRow.getCell(0));
+            if (content.isEmpty())
                 break;
-            }
-
-            System.out.println(currentCell.getCellTypeEnum().name());
-            String projectName = currentCell.getStringCellValue();
-
-            Project project = projects.get(projectName);
+            Project project = projects.get(content);
 
             if (project == null) {
                 //skip row
-                //if (debug) System.out.println("No project " + projectName);
                 continue;//TODO
             }
             int monthsColOffset = 4;
             for (int i = currentMonth; i < 12; i++) {
                 double monthValue = project.getChargingMonthly().get(i);
-
                 Cell cell = currentRow.getCell(monthsColOffset+i);
-                //if (debug) System.out.print("was " + cell.getNumericCellValue());
                 cell.setCellValue(monthValue);
-                if (debug) System.out.println(",become " + cell.getNumericCellValue());
+                cell.setCellStyle(style);
             }
-            System.out.println("----------------------------------------------");
         }
-        System.out.println("Parsing projects world: charging finished");
-
-
     }
 
-    public static Project parseForecastProject(String filePath) {
+    public Project parseForecastProject(String filePath) throws Exception {
         XSSFWorkbook workbook;
         //parsing Forecast_PROJECTNAME.xslx
         int ind = filePath.lastIndexOf(File.separator);
         String fileName = filePath.substring(ind + 1, filePath.lastIndexOf('.'));
         String projectName = fileName.replace("Forecast_", "");
         Project project = new Project(projectName, filePath);
-        System.err.println("Started parsing: " + projectName);
-        int rowHeaderColumn = 1;
         try (FileInputStream file = new FileInputStream(new File(project.getFilename()))) {
             //Get the workbook instance for XLS file
             workbook = new XSSFWorkbook(OPCPackage.open(file));
         } catch (InvalidFormatException | IOException e) {
-            e.printStackTrace();
-            return null;
+            throw new Exception(project.getFilename() + " has wrong format");
         }
 
-        //parse revenue sheet
         XSSFSheet workHoursSheet = workbook.getSheet("Work hours");
-        Iterator<Row> rowIterator = workHoursSheet.iterator();
-        int monthsColOffset = 3;
-        //search for "Total with travel" row
-        Row totalWithTravelRow = null;
-        Row travel = null;
-        while (rowIterator.hasNext()) {
-            Row currentRow = rowIterator.next();
-            Cell currentCell = currentRow.getCell(rowHeaderColumn);
-            if (currentCell != null && currentCell.getStringCellValue().equals("Total with travel")) {
-                totalWithTravelRow = currentRow;
-            }
-            if (currentCell != null && currentCell.getStringCellValue().equals("Travel")) {
-                travel = currentRow;
-            }
-        }
-        if (totalWithTravelRow == null) {
-            System.err.println("Not found \"Total with travel\" line");
-            return null;
-        }
-
-        for (int i = monthsColOffset; i < monthsColOffset + 12; i++) {
-            Double monthValue = totalWithTravelRow.getCell(i).getNumericCellValue();
-            project.getRevenueMonthly().add(monthValue);
-        }
-
-        for (int i = monthsColOffset; i < monthsColOffset + 13; i++) {
-            Double monthValue = travel.getCell(i).getNumericCellValue();
-            project.getTravelMonthly().add(monthValue);
-        }
-
-        Cell total = totalWithTravelRow.getCell(monthsColOffset + 12);
-        project.setRevenueTotal(total.getNumericCellValue());
-
-        for (int i = monthsColOffset; i < monthsColOffset + 12; i++) {
-            Double monthValue = totalWithTravelRow.getCell(i).getNumericCellValue();
-            project.getRevenueMonthly().add(monthValue);
-        }
         XSSFSheet chargingSheet = workbook.getSheet("Charging");
-        //search for "TOTAL" and "CC" (CostCenter) row
-        Row totalRow = null;
-        List<Row> ccRows = new ArrayList<Row>();
-        Iterator<Row> chargingIterator = chargingSheet.iterator();
-        while (chargingIterator.hasNext()) {
-            Row currentRow = chargingIterator.next();
+        if (workHoursSheet == null || chargingSheet == null)
+            throw new Exception("No such tab in " + projectName + " file");
 
-            Cell currentCell = currentRow.getCell(0);
+        Row totalWithTravel = getRowStartsWith(workHoursSheet, "Total with travel");
+        Row travel = getRowStartsWith(workHoursSheet, "Travel");
 
+        Row total = getRowStartsWith(chargingSheet, "TOTAL");
+        List<Row> CC = getRowsStartsWith(chargingSheet, "CC");
+        if (totalWithTravel == null || travel == null || total == null || CC.size() == 0)
+            throw new Exception("No such string in " + projectName + " file");
 
-            if (currentCell != null && currentCell.getStringCellValue().equals("TOTAL")) {
-                totalRow = currentRow;
-            }
-            if (currentCell != null && currentCell.getStringCellValue().contains("CC")) {
-                ccRows.add(currentRow);
-            }
-        }
-        monthsColOffset = 4;
-        for (int i = monthsColOffset; i < monthsColOffset + 12; i++) {
-            Double monthValue = totalRow.getCell(i).getNumericCellValue();
+        for (int i = 2; i <= 13; i++) {
+            Double monthValue = getThCell(travel, i).getNumericCellValue();
+            project.getTravelMonthly().add(monthValue);
+
+            monthValue = getThCell(totalWithTravel, i).getNumericCellValue();
+            project.getRevenueMonthly().add(monthValue);
+
+            monthValue = getThCell(total, i).getNumericCellValue();
             project.getChargingMonthly().add(monthValue);
         }
 
         HashMap<Integer, ArrayList<Double>> map = new HashMap<Integer, ArrayList<Double>>();
-        for (Row row : ccRows) { // for each costcenter
-            Integer costcenter;
-            costcenter = (int) row.getCell(1).getNumericCellValue();
-            monthsColOffset = 4;
+        for (Row row : CC) { // for each costcenter
+            Integer center = (int) getThCell(row, 2).getNumericCellValue();
             ArrayList<Double> values = new ArrayList<>();
-            for (int i = monthsColOffset; i < monthsColOffset + 12; i++) {
-                Double monthValue = row.getCell(i).getNumericCellValue();
+            for (int i = 3; i <= 14; i++) {
+                Double monthValue = getThCell(row, i).getNumericCellValue();
                 values.add(monthValue);
             }
-            map.put(costcenter, values);
+            map.put(center, values);
         }
         project.setCostCenterMonthly(map);
 

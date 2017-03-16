@@ -15,7 +15,7 @@ import java.util.function.BiPredicate;
  */
 public class Utils {
 
-    private static BiPredicate<String, String> sameContent = (cell1, cell2) -> cell1.replaceAll(" ", "").equalsIgnoreCase(cell2.replaceAll(" ", ""));
+    private static BiPredicate<String, String> sameContent = (stored, cell) -> stored.replaceAll(" ", "").equalsIgnoreCase(cell.replaceAll(" ", ""));
 
 
     public static Row getRowStartsWith(XSSFSheet from, String cellContent) {
@@ -46,7 +46,7 @@ public class Utils {
         int index = -1;
         int num = row.getPhysicalNumberOfCells();
         for (int i = 0; (i < num) && (th > 0); i++) {
-            if (row.getCell(i) != null) {
+            if (!getCellContent(row.getCell(i)).isEmpty()) {
                 th--;
                 index = i;
             }
@@ -58,7 +58,7 @@ public class Utils {
         Cell c = null;
         int num = row.getPhysicalNumberOfCells();
         for (int i = 0; (i < num) && (th > 0); i++) {
-            if (row.getCell(i) != null) {
+            if (!getCellContent(row.getCell(i)).isEmpty()) {
                 th--;
                 c = row.getCell(i);
             }

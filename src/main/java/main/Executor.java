@@ -50,7 +50,7 @@ public class Executor {
         try {
             workbook = new XSSFWorkbook(OPCPackage.open(projectWorldFile));
             style = workbook.createCellStyle();
-            style.setFillForegroundColor(IndexedColors.AQUA.index);
+            style.setFillForegroundColor(IndexedColors.GREEN.index);
             style.setFillPattern(HSSFCellStyle.SOLID_FOREGROUND);
         } catch (InvalidFormatException | IOException e) {
            // return "Cannot open forecast project world";
@@ -96,7 +96,7 @@ public class Executor {
         rowIterator.next();
         while (rowIterator.hasNext()) {
             Row currentRow = rowIterator.next();
-            String content = getCellContent(currentRow.getCell(0));
+            String content = getCellContent(currentRow.getCell(0)).replaceAll(" ", "");;
             if (content.isEmpty())
                 break;
             Project project = projects.get(content);
@@ -106,19 +106,19 @@ public class Executor {
             }
             int costcenter = (int) Double.parseDouble(getCellContent(currentRow.getCell(3)));//int) currentRow.getCell(3).getNumericCellValue();
             ArrayList<Double> values = project.getCostCenterMonthly().get(costcenter);
-
+            if (values == null) {
+                continue;
+            }
+            //System.out.println(" == " + values.size());
             int monthsColOffset = 4;
             for (int i = currentMonth; i < 12; i++) {
-
-
+                //System.out.println(" == " + i);
                 double monthValue = values.get(i);
-
                 Cell cell = currentRow.getCell(monthsColOffset + i);
                 cell.setCellValue(monthValue);
                 cell.setCellStyle(style);
             }
         }
-
     }
 
     /**
@@ -144,22 +144,27 @@ public class Executor {
         rowIterator.next();
         while (rowIterator.hasNext()) {
             Row currentRow = rowIterator.next();
-            String content = getCellContent(currentRow.getCell(0));
+            String content = getCellContent(currentRow.getCell(0)).replaceAll(" ", "");
+           // System.out.println(" content: " + content);
             if (content.isEmpty())
                 break;
             Project project = projects.get(content);
+            //System.out.println(" set: " + projects.keySet());
 
             if (project == null) {
                 //skip row
                 continue;//TODO
             }
+            System.out.println( " month: " + project.getRevenueMonthly().size());
+            // get month -  1
             for (int i = currentMonth; i < 12; i++) {
                 double monthValue = project.getRevenueMonthly().get(i);
+                //System.out.println( " to " + i + " month - " + monthValue);
+
                 int colIndex = cols.get(i);
                 Cell cell = currentRow.getCell(colIndex);
                 cell.setCellValue(monthValue);
                 cell.setCellStyle(style);
-
             }
         }
     }
@@ -175,7 +180,7 @@ public class Executor {
         while (rowIterator.hasNext()) {
             Row currentRow = rowIterator.next();
             //System.out.println(" == " + getCellContent(currentRow.getCell(0)));
-            String content = getCellContent(currentRow.getCell(0));
+            String content = getCellContent(currentRow.getCell(0)).replaceAll(" ", "");;
             if (content.isEmpty())
                 break;
             Project project = projects.get(content);
@@ -203,7 +208,7 @@ public class Executor {
         rowIterator.next();
         while (rowIterator.hasNext()) {
             Row currentRow = rowIterator.next();
-            String content = getCellContent(currentRow.getCell(0));
+            String content = getCellContent(currentRow.getCell(0)).replaceAll(" ", "");;
             if (content.isEmpty())
                 break;
             Project project = projects.get(content);
@@ -227,7 +232,17 @@ public class Executor {
         //parsing Forecast_PROJECTNAME.xslx
         int ind = filePath.lastIndexOf(File.separator);
         String fileName = filePath.substring(ind + 1, filePath.lastIndexOf('.'));
-        String projectName = fileName.replace("Forecast_", "");
+        String projectName = fileName.replace("Forecast_", "").replaceAll(" ", "");
+        int year = projectName.lastIndexOf("_");
+        if (year > -1) {
+            String possibleYear = projectName.substring(year + 1, projectName.length());
+            try {
+                Integer.parseInt(possibleYear);
+                projectName = projectName.replace("_" + possibleYear, "");
+            } catch (Exception e ) {
+            }
+        }
+
         Project project = new Project(projectName, filePath);
         try (FileInputStream file = new FileInputStream(new File(project.getFilename()))) {
             //Get the workbook instance for XLS file
@@ -239,36 +254,49 @@ public class Executor {
         XSSFSheet workHoursSheet = workbook.getSheet("Work hours");
         XSSFSheet chargingSheet = workbook.getSheet("Charging");
         if (workHoursSheet == null || chargingSheet == null)
-            throw new Exception("No such tab in " + projectName + " file");
+            throw new Exception("No such tab in " + filePath + " file");
 
         Row totalWithTravel = getRowStartsWith(workHoursSheet, "Total with travel");
         Row travel = getRowStartsWith(workHoursSheet, "Travel");
 
         Row total = getRowStartsWith(chargingSheet, "TOTAL");
         List<Row> CC = getRowsStartsWith(chargingSheet, "CC");
-        if (totalWithTravel == null || travel == null || total == null || CC.size() == 0)
-            throw new Exception("No such string in " + projectName + " file");
+        if (totalWithTravel == null || travel == null || total == null) {
+            throw new Exception("No such string in " + filePath + " file");
+        }
+
+        //System.err.println(" == " + (total.getCell(1) == null) + "|" + (getCellContent(total.getCell(2))) + "|" + (getCellContent(total.getCell(2))).isEmpty());
 
         for (int i = 2; i <= 13; i++) {
             Double monthValue = getThCell(travel, i).getNumericCellValue();
             project.getTravelMonthly().add(monthValue);
-
+          //  System.out.println((i - 1) + " month - " + monthValue + " at travel ");
             monthValue = getThCell(totalWithTravel, i).getNumericCellValue();
             project.getRevenueMonthly().add(monthValue);
 
             monthValue = getThCell(total, i).getNumericCellValue();
             project.getChargingMonthly().add(monthValue);
+           // System.out.println((i - 1) + " month - " + monthValue + " at charging total ");
+
         }
 
         HashMap<Integer, ArrayList<Double>> map = new HashMap<Integer, ArrayList<Double>>();
-        for (Row row : CC) { // for each costcenter
-            Integer center = (int) getThCell(row, 2).getNumericCellValue();
-            ArrayList<Double> values = new ArrayList<>();
-            for (int i = 3; i <= 14; i++) {
-                Double monthValue = getThCell(row, i).getNumericCellValue();
-                values.add(monthValue);
-            }
+        if (CC.isEmpty()) {
+            Row randomEmployee = chargingSheet.getRow(1); // second row should be an employee
+            Cell cell = getThCell(randomEmployee, 2);
+            Integer center = (int) Double.parseDouble(getCellContent(cell));
+            ArrayList<Double> values = project.getChargingMonthly();
             map.put(center, values);
+        } else {
+            for (Row row : CC) { // for each costcenter
+                Integer center = (int) getThCell(row, 2).getNumericCellValue();
+                ArrayList<Double> values = new ArrayList<>();
+                for (int i = 3; i <= 14; i++) {
+                    Double monthValue = getThCell(row, i).getNumericCellValue();
+                    values.add(monthValue);
+                }
+                map.put(center, values);
+            }
         }
         project.setCostCenterMonthly(map);
 
